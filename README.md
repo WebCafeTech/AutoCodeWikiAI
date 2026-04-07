@@ -406,3 +406,18 @@ If you use CodeWiki in your research, please cite:
 ## License
 
 This project is licensed under the MIT License.
+
+---
+
+## Acknowledgments
+
+This repository is a fork of the outstanding work done by the team at **FSoft AI4Code**. Huge thanks and full credit go to the original authors:
+
+> **[CodeWiki](https://github.com/FSoft-AI4Code/CodeWiki)** — *Evaluating AI's Ability to Generate Holistic Documentation for Large-Scale Codebases*
+> by [Anh Nguyen Hoang](https://github.com/FSoft-AI4Code), Minh Le-Anh, Bach Le, and Nghi D. Q. Bui.
+
+Their research, framework design, and open-source contributions have made this project possible. If you use this work, please consider citing the original paper and starring the [upstream repository](https://github.com/FSoft-AI4Code/CodeWiki).
+
+This fork is maintained by **[WebCafeTech](https://github.com/WebCafeTech)** and will be extended with new designs, features, and integrations over time.
+
+🌐 **GitHub Pages**: [https://webcafetech.github.io/AutoCodeWikiAI/](https://webcafetech.github.io/AutoCodeWikiAI/)
