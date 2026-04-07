@@ -85,7 +85,7 @@ def config_group():
 )
 @click.option(
     "--provider",
-    type=click.Choice(['openai-compatible', 'anthropic', 'bedrock', 'azure-openai'], case_sensitive=False),
+    type=click.Choice(['openai-compatible', 'anthropic', 'bedrock', 'azure-openai', 'gemini'], case_sensitive=False),
     help="LLM provider type (default: openai-compatible)"
 )
 @click.option(
@@ -565,6 +565,11 @@ def config_validate(quick: bool, verbose: bool):
                         azure_endpoint=config.base_url,
                     )
                     client.models.list()
+                elif provider == "gemini":
+                    # Use Google Gemini SDK
+                    from google import genai
+                    gemini_client = genai.Client(api_key=api_key)
+                    list(gemini_client.models.list())
                 elif "api.anthropic.com" in base_url_lower:
                     # Use Anthropic SDK for native Anthropic endpoints
                     import anthropic

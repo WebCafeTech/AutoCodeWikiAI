@@ -4,7 +4,7 @@ LLM service factory for creating configured LLM clients.
 Includes a compatibility layer for OpenAI-compatible API proxies that may
 return slightly non-standard responses (e.g. choices[].index = None).
 
-Supports multiple providers: openai-compatible, anthropic, bedrock, azure-openai.
+Supports multiple providers: openai-compatible, anthropic, bedrock, azure-openai, gemini.
 """
 import logging
 from openai.types import chat
@@ -57,6 +57,7 @@ def _get_litellm_model_name(model_name: str, provider: str) -> str:
 
     For Bedrock, prefixes the model name with 'bedrock/' if not already prefixed.
     For Anthropic, prefixes with 'anthropic/' if not already prefixed.
+    For Gemini, prefixes with 'gemini/' if not already prefixed.
     """
     if provider == "bedrock":
         if not model_name.startswith("bedrock/"):
@@ -64,6 +65,9 @@ def _get_litellm_model_name(model_name: str, provider: str) -> str:
     elif provider == "anthropic":
         if not model_name.startswith("anthropic/"):
             return f"anthropic/{model_name}"
+    elif provider == "gemini":
+        if not model_name.startswith("gemini/"):
+            return f"gemini/{model_name}"
     return model_name
 
 
@@ -154,8 +158,9 @@ def call_llm(
     """
     Call LLM with the given prompt.
 
-    Supports openai-compatible, anthropic, and bedrock providers.
+    Supports openai-compatible, anthropic, bedrock, azure-openai, and gemini providers.
     For bedrock/anthropic, uses litellm to translate the API call.
+    For gemini, uses the google-genai SDK directly.
 
     Args:
         prompt: The prompt to send
@@ -176,6 +181,9 @@ def call_llm(
 
     if provider == "azure-openai":
         return _call_llm_via_azure(prompt, config, model, temperature)
+
+    if provider == "gemini":
+        return _call_llm_via_gemini(prompt, config, model, temperature)
 
     # Default: OpenAI-compatible
     client = create_openai_client(config)
@@ -260,3 +268,39 @@ def _call_llm_via_azure(
         max_tokens=config.max_tokens,
     )
     return response.choices[0].message.content
+
+
+def _call_llm_via_gemini(
+    prompt: str,
+    config: Config,
+    model: str,
+    temperature: float = 0.0
+) -> str:
+    """
+    Call LLM via Google Gemini using the google-genai SDK.
+
+    Uses the google.genai client with the provided API key.
+    The model name may optionally include a 'gemini/' prefix, which is
+    stripped before passing to the SDK.
+    """
+    from google import genai
+    from google.genai import types as genai_types
+
+    api_key = config.llm_api_key
+    # Strip the 'gemini/' litellm prefix if present
+    sdk_model = model[len("gemini/"):] if model.startswith("gemini/") else model
+
+    logger.debug("Calling Gemini model %s via google-genai SDK", sdk_model)
+
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=sdk_model,
+        contents=prompt,
+        config=genai_types.GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=config.max_tokens,
+        ),
+    )
+    if response.text is None:
+        raise ValueError(f"Gemini model {sdk_model} returned an empty response")
+    return response.text
