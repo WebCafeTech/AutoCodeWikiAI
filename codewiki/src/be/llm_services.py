@@ -301,4 +301,6 @@ def _call_llm_via_gemini(
             max_output_tokens=config.max_tokens,
         ),
     )
+    if response.text is None:
+        raise ValueError(f"Gemini model {sdk_model} returned an empty response")
     return response.text
