@@ -70,7 +70,7 @@ def _split_into_chunks(text: str, max_chars: int = 1500) -> List[str]:
 # Retrieval (keyword BM25-inspired scoring, no external dependencies)
 # ---------------------------------------------------------------------------
 
-def _tokenise(text: str) -> List[str]:
+def _tokenize(text: str) -> List[str]:
     """Lowercase word-tokenise *text*, removing punctuation."""
     return re.findall(r"\b[a-z0-9_]+\b", text.lower())
 
@@ -82,7 +82,7 @@ def _build_idf(chunks: List[Tuple[str, str]]) -> Dict[str, float]:
         return {}
     df: Dict[str, int] = {}
     for _, text in chunks:
-        for token in set(_tokenise(text)):
+        for token in set(_tokenize(text)):
             df[token] = df.get(token, 0) + 1
     return {token: math.log((n - freq + 0.5) / (freq + 0.5) + 1.0) for token, freq in df.items()}
 
@@ -127,12 +127,12 @@ def retrieve_relevant_chunks(
         return []
 
     idf = _build_idf(chunks)
-    query_tokens = _tokenise(query)
-    avg_dl = sum(len(_tokenise(text)) for _, text in chunks) / len(chunks)
+    query_tokens = _tokenize(query)
+    avg_dl = sum(len(_tokenize(text)) for _, text in chunks) / len(chunks)
 
     scored: List[Tuple[float, int]] = []
     for i, (_, text) in enumerate(chunks):
-        doc_tokens = _tokenise(text)
+        doc_tokens = _tokenize(text)
         score = _bm25_score(query_tokens, doc_tokens, idf, avg_dl=avg_dl)
         scored.append((score, i))
 
