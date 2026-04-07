@@ -675,6 +675,383 @@ DOCS_VIEW_TEMPLATE = """
             mermaid.init(undefined, document.querySelectorAll('.mermaid'));
         });
     </script>
+
+    <!-- ===================== Chat Widget ===================== -->
+    <style>
+        /* Chat widget – fixed to the bottom-right corner */
+        #chat-widget {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        #chat-toggle-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-color, #2563eb);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #chat-toggle-btn:hover {
+            background: #1d4ed8;
+            transform: scale(1.05);
+        }
+
+        #chat-panel {
+            display: none;
+            flex-direction: column;
+            width: 380px;
+            height: 520px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        #chat-panel.open {
+            display: flex;
+        }
+
+        #chat-header {
+            background: var(--primary-color, #2563eb);
+            color: white;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        #chat-header span {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        #chat-clear-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        #chat-clear-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-bubble {
+            max-width: 88%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .chat-bubble.user {
+            background: var(--primary-color, #2563eb);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-bubble.assistant {
+            background: #f1f5f9;
+            color: #334155;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-bubble.assistant pre {
+            background: #e2e8f0;
+            padding: 8px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin: 6px 0;
+        }
+
+        .chat-bubble.assistant code {
+            background: #e2e8f0;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .chat-bubble.assistant pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        #chat-footer {
+            padding: 12px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+
+        #chat-input:focus {
+            border-color: var(--primary-color, #2563eb);
+        }
+
+        #chat-send-btn {
+            background: var(--primary-color, #2563eb);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+            align-self: flex-end;
+        }
+
+        #chat-send-btn:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+
+        #chat-send-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .chat-typing {
+            display: inline-block;
+            color: #64748b;
+            font-style: italic;
+            font-size: 13px;
+        }
+    </style>
+
+    <div id="chat-widget">
+        <div id="chat-panel" role="dialog" aria-label="Documentation chatbot">
+            <div id="chat-header">
+                <span>💬 Ask about the docs</span>
+                <button id="chat-clear-btn" title="Clear chat history">Clear</button>
+            </div>
+            <div id="chat-messages" aria-live="polite"></div>
+            <div id="chat-footer">
+                <textarea
+                    id="chat-input"
+                    rows="1"
+                    placeholder="Ask a question about this repository…"
+                    aria-label="Chat message input"
+                ></textarea>
+                <button id="chat-send-btn" title="Send message" aria-label="Send message">➤</button>
+            </div>
+        </div>
+        <button id="chat-toggle-btn" title="Toggle chat" aria-label="Open documentation chatbot">💬</button>
+    </div>
+
+    <script>
+    (function () {
+        var JOB_ID = {{ job_id | tojson }};
+        var SESSION_ID = 'session-' + Math.random().toString(36).slice(2);
+
+        var panel    = document.getElementById('chat-panel');
+        var toggleBtn = document.getElementById('chat-toggle-btn');
+        var clearBtn  = document.getElementById('chat-clear-btn');
+        var messages  = document.getElementById('chat-messages');
+        var input     = document.getElementById('chat-input');
+        var sendBtn   = document.getElementById('chat-send-btn');
+
+        var isOpen = false;
+        var isStreaming = false;
+
+        // Toggle panel open/closed
+        toggleBtn.addEventListener('click', function () {
+            isOpen = !isOpen;
+            panel.classList.toggle('open', isOpen);
+            toggleBtn.textContent = isOpen ? '✕' : '💬';
+            if (isOpen && messages.children.length === 0) {
+                appendBubble('assistant', 'Hi! I can answer questions about this repository\'s documentation. What would you like to know?');
+            }
+            if (isOpen) { input.focus(); }
+        });
+
+        clearBtn.addEventListener('click', function () {
+            messages.innerHTML = '';
+            // Also clear server-side history
+            fetch('/api/chat/' + JOB_ID + '/history?session_id=' + SESSION_ID, { method: 'DELETE' });
+            appendBubble('assistant', 'Chat history cleared. Ask me anything about the documentation!');
+        });
+
+        // Auto-resize textarea
+        input.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Send on Enter (Shift+Enter for newline)
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        function sendMessage() {
+            var text = input.value.trim();
+            if (!text || isStreaming) return;
+
+            appendBubble('user', escapeHtml(text));
+            input.value = '';
+            input.style.height = 'auto';
+            setStreaming(true);
+
+            var assistantBubble = appendBubble('assistant', '');
+            var typingIndicator = document.createElement('span');
+            typingIndicator.className = 'chat-typing';
+            typingIndicator.textContent = '…';
+            assistantBubble.appendChild(typingIndicator);
+            scrollToBottom();
+
+            fetch('/api/chat/' + JOB_ID, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, session_id: SESSION_ID })
+            }).then(function (resp) {
+                if (!resp.ok) {
+                    typingIndicator.remove();
+                    assistantBubble.textContent = '⚠️ Server error (' + resp.status + '). Please try again.';
+                    setStreaming(false);
+                    return;
+                }
+                var reader = resp.body.getReader();
+                var decoder = new TextDecoder();
+                var rawText = '';
+                var buffer = '';
+
+                function pump() {
+                    reader.read().then(function (result) {
+                        if (result.done) {
+                            setStreaming(false);
+                            return;
+                        }
+                        buffer += decoder.decode(result.value, { stream: true });
+                        var lines = buffer.split('\\n');
+                        buffer = lines.pop(); // keep incomplete line
+                        lines.forEach(function (line) {
+                            if (line.startsWith('data: ')) {
+                                var data = line.slice(6);
+                                if (data === '[DONE]') {
+                                    setStreaming(false);
+                                    return;
+                                }
+                                // Unescape newlines encoded by the server
+                                rawText += data.replace(/\\\\n/g, '\\n');
+                                typingIndicator.remove();
+                                assistantBubble.innerHTML = renderMarkdown(rawText);
+                                scrollToBottom();
+                            }
+                        });
+                        pump();
+                    }).catch(function () {
+                        setStreaming(false);
+                    });
+                }
+                pump();
+            }).catch(function () {
+                typingIndicator.remove();
+                assistantBubble.textContent = '⚠️ Network error. Please check your connection.';
+                setStreaming(false);
+            });
+        }
+
+        function appendBubble(role, html) {
+            var div = document.createElement('div');
+            div.className = 'chat-bubble ' + role;
+            div.innerHTML = html;
+            messages.appendChild(div);
+            scrollToBottom();
+            return div;
+        }
+
+        function scrollToBottom() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function setStreaming(val) {
+            isStreaming = val;
+            sendBtn.disabled = val;
+            input.disabled = val;
+        }
+
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        /**
+         * Minimal markdown-to-HTML renderer for assistant responses.
+         * Handles: code blocks, inline code, bold, italic, links, line breaks.
+         */
+        function renderMarkdown(md) {
+            var html = escapeHtml(md);
+            // Fenced code blocks: ```lang\n...\n```
+            html = html.replace(/```([^\\n]*)\\n([\\s\\S]*?)```/g, function (_, lang, code) {
+                return '<pre><code>' + code + '</code></pre>';
+            });
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Bold **text**
+            html = html.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+            // Italic *text*
+            html = html.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
+            // Links [text](url)
+            html = html.replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+            // Headings # / ## / ###
+            html = html.replace(/^### (.+)$/gm, '<strong>$1</strong>');
+            html = html.replace(/^## (.+)$/gm, '<strong>$1</strong>');
+            html = html.replace(/^# (.+)$/gm, '<strong>$1</strong>');
+            // Newlines -> <br> (outside pre blocks)
+            html = html.replace(/\\n/g, '<br>');
+            return html;
+        }
+    })();
+    </script>
 </body>
 </html>
 """

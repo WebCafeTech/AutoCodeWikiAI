@@ -18,6 +18,7 @@ from .cache_manager import CacheManager
 from .background_worker import BackgroundWorker
 from .routes import WebRoutes
 from .config import WebAppConfig
+from .chat_routes import router as chat_router
 
 
 # Initialize FastAPI app
@@ -36,6 +37,9 @@ background_worker = BackgroundWorker(
     temp_dir=WebAppConfig.TEMP_DIR
 )
 web_routes = WebRoutes(background_worker=background_worker, cache_manager=cache_manager)
+
+# Register chat routes
+app.include_router(chat_router)
 
 
 # Register routes
