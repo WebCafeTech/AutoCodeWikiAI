@@ -209,8 +209,9 @@ async def stream_chat_response(
         }
     )
 
-    # Read LLM config from environment (same variables used by web app)
-    llm_base_url = os.getenv("LLM_BASE_URL", "http://0.0.0.0:4000/")
+    # Read LLM config from environment (same variables used by the web app and
+    # the CLI; falls back to the values defined in codewiki.src.config).
+    llm_base_url = os.getenv("LLM_BASE_URL", "http://localhost:4000/")
     llm_api_key = os.getenv("LLM_API_KEY", "sk-1234")
     main_model = os.getenv("MAIN_MODEL", "claude-sonnet-4")
 
@@ -228,7 +229,8 @@ async def stream_chat_response(
             delta = chunk.choices[0].delta if chunk.choices else None
             if delta and delta.content:
                 yield delta.content
-    except APIError as exc:
-        yield f"\n\n⚠️ LLM error: {exc}"
+    except APIError:
+        # Avoid leaking internal error details (e.g. API keys in URLs) to the client.
+        yield "\n\n⚠️ The LLM service returned an error. Please try again later."
     finally:
         yield "[DONE]"

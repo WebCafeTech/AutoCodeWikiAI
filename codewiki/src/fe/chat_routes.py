@@ -12,6 +12,7 @@ persists for the lifetime of the server process, which satisfies the
 requirement that "chat history persists for the session".
 """
 
+import re
 from pathlib import Path
 from typing import Dict, List
 
@@ -26,11 +27,25 @@ router = APIRouter()
 # In-memory chat history: {(job_id, session_id): [{"role": ..., "content": ...}]}
 _chat_histories: Dict[tuple, List[Dict[str, str]]] = {}
 
+# Docs root – resolved once from the environment / config so all requests use
+# the same base directory.  Can be overridden for testing.
+_DOCS_ROOT = Path("output") / "docs"
+
+# Job IDs are derived from GitHub repo full-names like "owner--repo".
+# Only allow alphanumeric chars, hyphens, underscores, and dots.
+_JOB_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
 
 class ChatRequest(BaseModel):
     """Request body for POST /api/chat/{job_id}."""
     message: str
     session_id: str = "default"
+
+
+def _validate_job_id(job_id: str) -> None:
+    """Raise 400 if *job_id* contains path-traversal or unexpected characters."""
+    if not _JOB_ID_RE.match(job_id) or ".." in job_id:
+        raise HTTPException(status_code=400, detail="Invalid job ID")
 
 
 def _get_history(job_id: str, session_id: str) -> List[Dict[str, str]]:
@@ -50,7 +65,7 @@ def _append_history(
 
 
 @router.post("/api/chat/{job_id}")
-async def chat(job_id: str, body: ChatRequest, docs_root: Path = Path("output/docs")):
+async def chat(job_id: str, body: ChatRequest):
     """
     Stream an LLM response to *body.message* using RAG over the docs for
     *job_id*.
@@ -59,13 +74,15 @@ async def chat(job_id: str, body: ChatRequest, docs_root: Path = Path("output/do
     more tokens of the assistant's reply.  A final ``data: [DONE]`` event
     signals the end of the stream.
     """
-    # Resolve docs path
-    docs_path = docs_root / f"{job_id}-docs"
+    _validate_job_id(job_id)
+
+    # Resolve and canonicalise the docs path; reject any traversal attempts.
+    docs_path = (_DOCS_ROOT / f"{job_id}-docs").resolve()
+    expected_root = _DOCS_ROOT.resolve()
+    if not str(docs_path).startswith(str(expected_root)):
+        raise HTTPException(status_code=400, detail="Invalid job ID")
     if not docs_path.exists():
-        # Try absolute path from cwd
-        docs_path = Path("output") / "docs" / f"{job_id}-docs"
-    if not docs_path.exists():
-        raise HTTPException(status_code=404, detail=f"Documentation not found for job '{job_id}'")
+        raise HTTPException(status_code=404, detail="Documentation not found for this job")
 
     message = body.message.strip()
     if not message:
@@ -97,6 +114,7 @@ async def chat(job_id: str, body: ChatRequest, docs_root: Path = Path("output/do
 @router.delete("/api/chat/{job_id}/history")
 async def clear_history(job_id: str, session_id: str = "default"):
     """Clear chat history for *job_id* / *session_id*."""
+    _validate_job_id(job_id)
     key = (job_id, session_id)
     _chat_histories.pop(key, None)
     return {"status": "cleared"}
