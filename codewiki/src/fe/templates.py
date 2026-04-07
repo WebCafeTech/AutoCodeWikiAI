@@ -45,6 +45,9 @@ WEB_INTERFACE_TEMPLATE = """
             --blob-1:       rgba(99,102,241,.18);
             --blob-2:       rgba(6,182,212,.14);
             --blob-3:       rgba(139,92,246,.12);
+            /* ── Rainbow-border interior fill: solid white / dark ── */
+            --rainbow-fill:      #ffffff;
+            --rainbow-fill-text: var(--primary);
         }
         [data-theme="dark"] {
             --bg:           #070d1f;
@@ -71,6 +74,9 @@ WEB_INTERFACE_TEMPLATE = """
             --blob-1:       rgba(99,102,241,.30);
             --blob-2:       rgba(6,182,212,.22);
             --blob-3:       rgba(139,92,246,.22);
+            /* ── Rainbow-border interior fill: solid dark ── */
+            --rainbow-fill:      #0f172a;
+            --rainbow-fill-text: #a5b4fc;
         }
 
         /* ── Reset ─────────────────────────────────────────── */
@@ -306,8 +312,11 @@ WEB_INTERFACE_TEMPLATE = """
         .form-group input:focus {
             outline: none;
             border-color: transparent;
-            box-shadow: 0 0 0 2px var(--primary-glow);
-            background: var(--glass-bg);
+            box-shadow: none;
+            background: var(--rainbow-fill);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            color: var(--text);
         }
         .input-hint {
             margin-top: .4rem;
@@ -389,6 +398,16 @@ WEB_INTERFACE_TEMPLATE = """
         .rainbow-wrap:focus-within::before {
             opacity: 1;
             animation-play-state: running;
+        }
+        /* When rainbow ring is active, fill button interior with solid white/dark */
+        .rainbow-wrap:hover .btn,
+        .rainbow-wrap:focus-within .btn {
+            background: var(--rainbow-fill);
+            color: var(--rainbow-fill-text);
+        }
+        .rainbow-wrap:hover .btn::after,
+        .rainbow-wrap:focus-within .btn::after {
+            display: none;
         }
 
         /* spinner inside button */
@@ -853,6 +872,9 @@ DOCS_VIEW_TEMPLATE = """
             --blob-1:       rgba(99,102,241,.15);
             --blob-2:       rgba(6,182,212,.12);
             --blob-3:       rgba(139,92,246,.10);
+            /* ── Rainbow-border interior fill ── */
+            --rainbow-fill:      #ffffff;
+            --rainbow-fill-text: var(--primary);
         }
         [data-theme="dark"] {
             --bg:           #070d1f;
@@ -870,6 +892,9 @@ DOCS_VIEW_TEMPLATE = """
             --blob-1:       rgba(99,102,241,.28);
             --blob-2:       rgba(6,182,212,.20);
             --blob-3:       rgba(139,92,246,.20);
+            /* ── Rainbow-border interior fill dark ── */
+            --rainbow-fill:      #0f172a;
+            --rainbow-fill-text: #a5b4fc;
         }
 
         /* ── Reset ─────────────────────────────────────────── */
@@ -938,10 +963,8 @@ DOCS_VIEW_TEMPLATE = """
         }
         .topbar-actions { display: flex; gap: .6rem; flex-shrink: 0; }
         .icon-btn {
-            background: rgba(255,255,255,.35);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,.4);
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: .35rem .65rem;
             cursor: pointer;
@@ -954,8 +977,8 @@ DOCS_VIEW_TEMPLATE = """
             isolation: isolate;
         }
         [data-theme="dark"] .icon-btn {
-            background: rgba(15,23,42,.50);
-            border-color: rgba(255,255,255,.10);
+            background: var(--surface);
+            border-color: var(--border);
         }
         /* Rainbow ring on hover / focus */
         .icon-btn::before {
@@ -977,7 +1000,13 @@ DOCS_VIEW_TEMPLATE = """
             opacity: 1;
             animation-play-state: running;
         }
-        .icon-btn:hover { background: var(--primary); color: #fff; border-color: transparent; }
+        /* Solid white/dark fill when rainbow ring is active */
+        .icon-btn:hover,
+        .icon-btn:focus {
+            background: var(--rainbow-fill);
+            color: var(--rainbow-fill-text);
+            border-color: transparent;
+        }
 
         /* ── Layout ────────────────────────────────────────── */
         .layout {
