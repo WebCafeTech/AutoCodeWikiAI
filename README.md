@@ -42,7 +42,7 @@ codewiki --version
 
 ### 2. Configure Your Environment
 
-CodeWiki supports multiple LLM providers: **OpenAI-compatible**, **Anthropic**, **AWS Bedrock**, and **Azure OpenAI**.
+CodeWiki supports multiple LLM providers: **OpenAI-compatible**, **Anthropic**, **AWS Bedrock**, **Azure OpenAI**, and **Google Gemini**.
 
 ```bash
 # Anthropic
@@ -68,6 +68,13 @@ codewiki config set \
   --aws-region us-east-1 \
   --main-model anthropic.claude-sonnet-4-v2:0 \
   --cluster-model anthropic.claude-sonnet-4-v2:0
+
+# Google Gemini
+codewiki config set \
+  --provider gemini \
+  --api-key YOUR_GEMINI_API_KEY \
+  --main-model gemini-2.5-pro \
+  --cluster-model gemini-2.5-pro
 ```
 
 ### 3. Generate Documentation
@@ -351,7 +358,7 @@ CodeWiki employs a three-stage process for comprehensive documentation generatio
 
 - **Python 3.12+**
 - **Node.js** (for Mermaid diagram validation)
-- **LLM API access** (Anthropic Claude, OpenAI, Azure OpenAI, AWS Bedrock)
+- **LLM API access** (Anthropic Claude, OpenAI, Azure OpenAI, AWS Bedrock, Google Gemini)
 - **Git** (for branch creation features)
 
 ---
